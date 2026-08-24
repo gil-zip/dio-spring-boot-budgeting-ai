@@ -5,6 +5,7 @@ import dio.budgeting.application.PersistTransactionUseCase;
 import dio.budgeting.domain.Category;
 import dio.budgeting.infrastructure.http.request.TransactionRequest;
 import dio.budgeting.infrastructure.http.response.TransactionResponse;
+import dio.budgeting.infrastructure.security.AuthenticatedUser;
 import org.springframework.ai.audio.transcription.TranscriptionModel;
 import org.springframework.ai.audio.tts.TextToSpeechModel;
 import org.springframework.ai.chat.client.ChatClient;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -47,18 +49,25 @@ public class TransactionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TransactionResponse createTransaction(@RequestBody TransactionRequest request) {
-        var transaction = persistTransactionUseCase.execute(request.toInput());
+    public TransactionResponse createTransaction(
+            @RequestBody TransactionRequest request,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        var transaction = persistTransactionUseCase.execute(request.toInput(), user.getId());
         return TransactionResponse.from(transaction);
     }
 
     @GetMapping("/{category}")
-    public List<TransactionResponse> readTransactions(@PathVariable Category category) {
-        return listTransactionsByCategoryUseCase.execute(category).stream().map(TransactionResponse::from).toList();
+    public List<TransactionResponse> readTransactions(
+            @PathVariable Category category,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        return listTransactionsByCategoryUseCase.execute(category, user.getId())
+                .stream()
+                .map(TransactionResponse::from)
+                .toList();
     }
 
     @PostMapping(value = "/ai", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "audio/mp3")
-    ResponseEntity<Resource> transcribe(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<Resource> transcribe(@RequestParam("file") MultipartFile file) {
         var userMessage = transcriptionModel.transcribe(file.getResource());
         var result = chatClient.prompt().user(userMessage).call().content();
 
