@@ -7,6 +7,7 @@ import dio.budgeting.domain.Transaction;
 import dio.budgeting.domain.TransactionRepository;
 import dio.budgeting.domain.UserId;
 import dio.budgeting.infrastructure.security.AuthenticatedUser;
+import dio.budgeting.infrastructure.storage.AudioRequestContextHolder;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -32,7 +33,9 @@ public class PersistTransactionUseCase {
 
     @Tool(name = "persist-transaction", description = "Persiste uma nova transação financeira")
     public TransactionOutput execute(PersistTransactionInput input) {
-        return execute(input, getAuthenticatedUserId(), null);
+        UserId userId = getAuthenticatedUserId();
+        AudioRecordId audioRecordId = AudioRequestContextHolder.get();
+        return execute(input, userId, audioRecordId);
     }
 
     private UserId getAuthenticatedUserId() {
